@@ -1,10 +1,33 @@
-export type FindingCategory = 'unused' | 'missing' | 'duplicated' | 'exposed-secret';
+export type FindingCategory = 'unused' | 'missing' | 'contract' | 'duplicated' | 'exposed-secret';
+
+export type FindingCode =
+  | 'ENV_UNUSED'
+  | 'ENV_MISSING'
+  | 'ENV_EXAMPLE_MISSING_USED_KEY'
+  | 'ENV_DUPLICATED_SAME_FILE'
+  | 'ENV_PUBLIC_SECRET'
+  | 'ENV_EXAMPLE_SECRET_VALUE'
+  | 'ENV_SECRET_LIKE_VALUE';
+
+export type FindingConfidence = 'high' | 'medium' | 'low';
 
 export type FindingSeverity = 'warning' | 'error';
 
 export type ExitCodeCategory = 'clean' | 'findings' | 'error';
 
 export type OutputFormat = 'human' | 'json';
+
+export type SecretRiskReasonCode =
+  | 'PUBLIC_PREFIX_WITH_SECRET_NAME'
+  | 'PUBLIC_PREFIX_WITH_SECRET_VALUE'
+  | 'SECRET_LIKE_VALUE'
+  | 'SECRET_NAME_WITH_SECRET_VALUE'
+  | 'EXAMPLE_FILE_SECRET_VALUE';
+
+export interface ToolMetadata {
+  name: 'env-doctor';
+  version: string;
+}
 
 export interface SourceLocation {
   filePath: string;
@@ -14,6 +37,7 @@ export interface SourceLocation {
 
 export interface ScanOptions {
   cwd?: string;
+  ci?: boolean;
   envFiles?: string[];
   sourcePaths?: string[];
   ignore?: string[];
@@ -32,6 +56,7 @@ export interface ResolvedConfig {
   ignore: string[];
   publicPrefixes: string[];
   failOn: FindingCategory[];
+  ci: boolean;
   knownRuntimeKeys: string[];
   maxFileSizeBytes: number;
 }
@@ -65,7 +90,9 @@ export interface DynamicEnvUsage extends SourceLocation {
 }
 
 export interface ScanFinding {
+  code: FindingCode;
   category: FindingCategory;
+  confidence: FindingConfidence;
   severity: FindingSeverity;
   key: string;
   message: string;
@@ -82,6 +109,7 @@ export interface ScanTotals {
   used: number;
   unused: number;
   missing: number;
+  contract: number;
   duplicated: number;
   exposedSecrets: number;
   envFiles: number;
@@ -91,6 +119,9 @@ export interface ScanTotals {
 }
 
 export interface ScanResult {
+  reportVersion: 1;
+  schema: string;
+  tool: ToolMetadata;
   cwd: string;
   config: {
     envFiles: string[];
@@ -98,6 +129,7 @@ export interface ScanResult {
     ignore: string[];
     publicPrefixes: string[];
     failOn: FindingCategory[];
+    ci: boolean;
   };
   envFiles: ScannedEnvFile[];
   sourceFiles: string[];
@@ -106,6 +138,39 @@ export interface ScanResult {
   findings: ScanFinding[];
   issues: ScanIssue[];
   totals: ScanTotals;
+  exitCode: {
+    category: ExitCodeCategory;
+    suggested: 0 | 1 | 2;
+  };
   exitCodeCategory: ExitCodeCategory;
   suggestedExitCode: 0 | 1 | 2;
+}
+
+export interface JsonErrorReport {
+  reportVersion: 1;
+  schema: string;
+  tool: ToolMetadata;
+  cwd: string;
+  config: {
+    envFiles: string[];
+    sourcePaths: string[];
+    ignore: string[];
+    publicPrefixes: string[];
+    failOn: FindingCategory[];
+    ci: boolean;
+  };
+  envFiles: ScannedEnvFile[];
+  sourceFiles: string[];
+  usages: EnvUsage[];
+  dynamicUsages: DynamicEnvUsage[];
+  findings: ScanFinding[];
+  issues: ScanIssue[];
+  totals: ScanTotals;
+  error: {
+    message: string;
+  };
+  exitCode: {
+    category: 'error';
+    suggested: 2;
+  };
 }

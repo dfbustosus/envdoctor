@@ -25,7 +25,9 @@ export const DEFAULT_IGNORE = [
 
 export const DEFAULT_PUBLIC_PREFIXES = ['NEXT_PUBLIC_', 'VITE_', 'PUBLIC_'] as const;
 
-export const DEFAULT_FAIL_ON: FindingCategory[] = ['unused', 'missing', 'duplicated', 'exposed-secret'];
+export const DEFAULT_FAIL_ON: FindingCategory[] = [];
+
+export const DEFAULT_CI_FAIL_ON: FindingCategory[] = ['missing', 'contract', 'duplicated', 'exposed-secret'];
 
 export const DEFAULT_KNOWN_RUNTIME_KEYS = ['NODE_ENV'] as const;
 
@@ -34,13 +36,14 @@ export async function loadConfig(options: ScanOptions = {}): Promise<ResolvedCon
 
   return {
     cwd,
+    ci: options.ci ?? false,
     envFileNames: [...DEFAULT_ENV_FILE_NAMES],
     envFiles: normalizePaths(options.envFiles ?? [], cwd),
     sourcePaths: normalizePaths(options.sourcePaths ?? [], cwd),
     sourceExtensions: [...DEFAULT_SOURCE_EXTENSIONS],
     ignore: [...DEFAULT_IGNORE, ...(options.ignore ?? [])],
     publicPrefixes: unique([...(DEFAULT_PUBLIC_PREFIXES as readonly string[]), ...(options.publicPrefixes ?? [])]),
-    failOn: options.failOn ?? [...DEFAULT_FAIL_ON],
+    failOn: options.failOn ?? (options.ci === true ? [...DEFAULT_CI_FAIL_ON] : [...DEFAULT_FAIL_ON]),
     knownRuntimeKeys: [...DEFAULT_KNOWN_RUNTIME_KEYS],
     maxFileSizeBytes: 1024 * 1024
   };

@@ -2,11 +2,11 @@
 
 ## Outcomes
 
-Developers can install `env-doctor`, run `env-doctor scan`, and receive an actionable report of dotenv health: used variables, unused definitions, missing definitions, duplicates, and exposed secret risks. Reports are safe for terminals and CI because raw env values are never printed.
+Developers can install `env-doctor`, run `env-doctor scan`, and receive an actionable report of dotenv health: used variables, unused definitions, missing definitions, `.env.example` contract drift, duplicates, and exposed secret risks. Reports are safe for terminals and CI because raw env values are never printed.
 
 ## Scope boundaries
 
-In scope for the baseline: the `scan` command, dotenv file discovery, JS/TS static usage detection, same-file duplicate detection, missing/unused classification, conservative secret exposure heuristics, human output, JSON output, deterministic exit codes, tests, CI, and npm package metadata.
+In scope for the baseline: the `scan` command, dotenv file discovery, JS/TS static usage detection, same-file duplicate detection, `.env.example` contract checks, missing/unused classification, conservative secret exposure heuristics, human output, versioned JSON output, deterministic exit codes, tests, CI, and npm package metadata.
 
 Out of scope for the baseline: automatic fixes, runtime production validation, deployment-provider secret reads, encrypted secret stores, framework-specific deep integrations, telemetry, web UI, and non-JS/TS language scanning.
 
@@ -19,13 +19,14 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 - Source scanning must use AST parsing for core JS/TS behavior.
 - Dynamic env usage is uncertainty metadata, not guessed usage.
 - Secret diagnostics must not include raw values.
+- JSON output is a versioned public contract with stable finding codes and confidence levels.
 
 ## Prior decisions
 
 - Default env files: `.env`, `.env.local`, `.env.prod`, `.env.stage`, `.env.example`.
 - Default source extensions: JS, JSX, TS, TSX, MJS, CJS, MTS, CTS.
 - Default public prefixes: `NEXT_PUBLIC_`, `VITE_`, `PUBLIC_`.
-- Exit code categories: clean `0`, findings `1`, scan error `2`.
+- Exit code categories: clean `0`, findings `1`, scan error `2`; local scans do not fail on findings unless `--ci` or `--fail-on` is used.
 - Public API: scanner entrypoint, config loader, report types, finding types, and reporter helpers.
 
 ## Task breakdown
@@ -33,8 +34,8 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 1. Package baseline: package metadata, TypeScript build, exports, bin, npm file allowlist, CI.
 2. Discovery: env files, source files, default ignores, explicit overrides.
 3. Parsing: dotenv definitions with line locations and AST source usage detection.
-4. Analysis: used, unused, missing, duplicated, exposed-secret findings.
-5. Reporting: compact human output and stable JSON output.
+4. Analysis: used, unused, missing, `.env.example` contract, duplicated, exposed-secret findings.
+5. Reporting: compact human output and stable versioned JSON output.
 6. Verification: unit tests, CLI fixture tests, typecheck, lint, build, and npm pack dry run.
 
 ## Verification criteria
@@ -43,5 +44,6 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 - Findings are deterministic and include key, reason, file, and location.
 - Empty dotenv values, quoted values, comments, duplicates, destructuring, bracket access, and dynamic access are tested.
 - JSON output is parseable and contains no raw env values.
+- JSON output includes `reportVersion`, `schema`, `tool`, stable finding `code`, `confidence`, and `exitCode`.
 - Human output is compact and actionable.
 - Release gates pass: typecheck, lint, tests, build, and `npm pack --dry-run`.

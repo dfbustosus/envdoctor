@@ -8,6 +8,7 @@ import type { ParsedEnvDefinition, ParsedEnvFile } from './internal-types.js';
 import { determineExitCodeCategory, exitCodeForCategory } from './policy.js';
 import { parseSourceFile, type ParsedSourceFile } from './source-parser.js';
 import type { EnvUsage, ScanIssue, ScanOptions, ScanResult, ScannedEnvFile } from './types.js';
+import { getToolMetadata, REPORT_SCHEMA_URL, REPORT_VERSION } from './version.js';
 
 export async function scanProject(options: ScanOptions = {}): Promise<ScanResult> {
   const config = await loadConfig(options);
@@ -30,21 +31,27 @@ export async function scanProject(options: ScanOptions = {}): Promise<ScanResult
     dynamicUsages,
     publicPrefixes: config.publicPrefixes,
     knownRuntimeKeys: config.knownRuntimeKeys,
+    exampleFileCount: parsedEnvFiles.filter((file) => isExampleEnvFile(file.filePath)).length,
     envFileCount: parsedEnvFiles.length,
     sourceFileCount: parsedSourceFiles.length,
     errorCount: issues.length
   });
 
   const exitCodeCategory = determineExitCodeCategory(analysis.findings, issues.length, config.failOn);
+  const suggestedExitCode = exitCodeForCategory(exitCodeCategory);
 
   return {
+    reportVersion: REPORT_VERSION,
+    schema: REPORT_SCHEMA_URL,
+    tool: getToolMetadata(),
     cwd: config.cwd,
     config: {
       envFiles: config.envFiles.length > 0 ? config.envFiles.map((filePath) => relativeToCwd(config.cwd, filePath)) : [...config.envFileNames],
       sourcePaths: config.sourcePaths.length > 0 ? config.sourcePaths.map((filePath) => relativeToCwd(config.cwd, filePath)) : ['.'],
       ignore: config.ignore,
       publicPrefixes: config.publicPrefixes,
-      failOn: config.failOn
+      failOn: config.failOn,
+      ci: config.ci
     },
     envFiles: parsedEnvFiles.map((file) => summarizeEnvFile(config.cwd, file)),
     sourceFiles: sourceFilePaths.map((filePath) => relativeToCwd(config.cwd, filePath)),
@@ -68,8 +75,12 @@ export async function scanProject(options: ScanOptions = {}): Promise<ScanResult
       filePath: relativeToCwd(config.cwd, issue.filePath)
     })),
     totals: analysis.totals,
+    exitCode: {
+      category: exitCodeCategory,
+      suggested: suggestedExitCode
+    },
     exitCodeCategory,
-    suggestedExitCode: exitCodeForCategory(exitCodeCategory)
+    suggestedExitCode
   };
 }
 
@@ -119,6 +130,10 @@ function dedupeUsages(usages: EnvUsage[]): EnvUsage[] {
 function relativeToCwd(cwd: string, filePath: string): string {
   const relative = path.relative(cwd, filePath);
   return relative === '' ? '.' : relative.split(path.sep).join('/');
+}
+
+function isExampleEnvFile(filePath: string): boolean {
+  return filePath.endsWith('.env.example');
 }
 
 export type { ParsedEnvDefinition };

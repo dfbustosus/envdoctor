@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import type { ParsedEnvDefinition } from './internal-types.js';
+import type { SecretRiskReasonCode } from './types.js';
 
 const SECRET_KEY_PATTERN = /(?:^|[_-])(?:SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE[_-]?KEY|API[_-]?KEY|AUTH|CREDENTIAL|SESSION)(?:[_-]|$)/iu;
 
@@ -18,11 +19,12 @@ const PLACEHOLDER_VALUE_PATTERN = /^(?:|example|sample|change[_-]?me|replace[_-]
 
 export interface SecretRisk {
   isRisk: boolean;
+  reasonCodes: SecretRiskReasonCode[];
   reasons: string[];
 }
 
 export function evaluateSecretRisk(definition: ParsedEnvDefinition, publicPrefixes: string[]): SecretRisk {
-  const reasons: string[] = [];
+  const reasonCodes: SecretRiskReasonCode[] = [];
   const publicPrefix = publicPrefixes.find((prefix) => definition.key.startsWith(prefix));
   const secretLikeName = isSecretLikeKey(definition.key);
   const secretLikeValue = isSecretLikeValue(definition.value);
@@ -30,28 +32,31 @@ export function evaluateSecretRisk(definition: ParsedEnvDefinition, publicPrefix
   const placeholder = isPlaceholderValue(definition.value);
 
   if (publicPrefix !== undefined && secretLikeName) {
-    reasons.push(`Key uses public prefix ${publicPrefix} and has a secret-like name.`);
+    reasonCodes.push('PUBLIC_PREFIX_WITH_SECRET_NAME');
   }
 
   if (publicPrefix !== undefined && secretLikeValue) {
-    reasons.push(`Key uses public prefix ${publicPrefix} and has a secret-like value.`);
+    reasonCodes.push('PUBLIC_PREFIX_WITH_SECRET_VALUE');
   }
 
   if (secretLikeValue && !placeholder) {
-    reasons.push('Value looks like secret material.');
+    reasonCodes.push('SECRET_LIKE_VALUE');
   }
 
   if (secretLikeName && secretLikeValue && !placeholder) {
-    reasons.push('Secret-like key name is paired with a secret-like value.');
+    reasonCodes.push('SECRET_NAME_WITH_SECRET_VALUE');
   }
 
   if (exampleFile && secretLikeValue && !placeholder) {
-    reasons.push('Example env file contains a secret-like value.');
+    reasonCodes.push('EXAMPLE_FILE_SECRET_VALUE');
   }
 
+  const uniqueReasonCodes = [...new Set(reasonCodes)];
+
   return {
-    isRisk: reasons.length > 0,
-    reasons
+    isRisk: uniqueReasonCodes.length > 0,
+    reasonCodes: uniqueReasonCodes,
+    reasons: uniqueReasonCodes.map((reasonCode) => formatSecretRiskReason(reasonCode, publicPrefix))
   };
 }
 
@@ -70,4 +75,19 @@ export function isSecretLikeValue(value: string): boolean {
 
 function isPlaceholderValue(value: string): boolean {
   return PLACEHOLDER_VALUE_PATTERN.test(value.trim());
+}
+
+function formatSecretRiskReason(reasonCode: SecretRiskReasonCode, publicPrefix: string | undefined): string {
+  switch (reasonCode) {
+    case 'PUBLIC_PREFIX_WITH_SECRET_NAME':
+      return `Key uses public prefix ${publicPrefix ?? 'PUBLIC_'} and has a secret-like name.`;
+    case 'PUBLIC_PREFIX_WITH_SECRET_VALUE':
+      return `Key uses public prefix ${publicPrefix ?? 'PUBLIC_'} and has a secret-like value.`;
+    case 'SECRET_LIKE_VALUE':
+      return 'Value looks like secret material.';
+    case 'SECRET_NAME_WITH_SECRET_VALUE':
+      return 'Secret-like key name is paired with a secret-like value.';
+    case 'EXAMPLE_FILE_SECRET_VALUE':
+      return 'Example env file contains a secret-like value.';
+  }
 }

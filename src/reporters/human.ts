@@ -12,6 +12,7 @@ export function renderHuman(result: ScanResult, options: HumanReportOptions = {}
     '',
     `WARN ${formatCount(result.totals.unused, 'unused')}`,
     `WARN ${formatCount(result.totals.missing, 'missing')}`,
+    `WARN ${formatCount(result.totals.contract, 'contract issue')}`,
     `WARN ${formatCount(result.totals.exposedSecrets, 'exposed secret')}`,
     `WARN ${formatCount(result.totals.duplicated, 'duplicated')}`
   ];
@@ -57,7 +58,7 @@ export function renderHuman(result: ScanResult, options: HumanReportOptions = {}
 }
 
 function formatFinding(finding: ScanFinding): string[] {
-  const lines = [`  WARN ${finding.category} ${finding.key}`, `    ${finding.message}`];
+  const lines = [`  WARN ${finding.code} ${finding.key}`, `    ${finding.message}`, `    Confidence: ${finding.confidence}`];
   const action = typeof finding.details?.action === 'string' ? finding.details.action : undefined;
   if (action !== undefined) {
     lines.push(`    Action: ${action}`);

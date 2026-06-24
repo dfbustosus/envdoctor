@@ -1,7 +1,7 @@
 export { loadConfig } from './config.js';
 export { scanProject } from './scanner.js';
 export { renderHuman } from './reporters/human.js';
-export { renderJson } from './reporters/json.js';
+export { renderJson, renderJsonError } from './reporters/json.js';
 export type {
   DynamicEnvUsage,
   EnvDefinitionSummary,
@@ -9,7 +9,10 @@ export type {
   EnvUsageSyntax,
   ExitCodeCategory,
   FindingCategory,
+  FindingCode,
+  FindingConfidence,
   FindingSeverity,
+  JsonErrorReport,
   OutputFormat,
   ResolvedConfig,
   ScanFinding,
@@ -18,5 +21,6 @@ export type {
   ScanResult,
   ScanTotals,
   ScannedEnvFile,
+  SecretRiskReasonCode,
   SourceLocation
 } from './types.js';

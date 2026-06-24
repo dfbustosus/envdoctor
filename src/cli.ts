@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 import { scanProject } from './scanner.js';
 import { renderHuman } from './reporters/human.js';
-import { renderJson } from './reporters/json.js';
+import { renderJson, renderJsonError } from './reporters/json.js';
 import type { FindingCategory, OutputFormat, ScanOptions } from './types.js';
+import { getToolMetadata } from './version.js';
 
 interface CliIo {
   stdout: Pick<NodeJS.WriteStream, 'write'>;
@@ -19,7 +19,7 @@ interface ParsedArgs {
   options: ScanOptions;
 }
 
-const FINDING_CATEGORIES: FindingCategory[] = ['unused', 'missing', 'duplicated', 'exposed-secret'];
+const FINDING_CATEGORIES: FindingCategory[] = ['unused', 'missing', 'contract', 'duplicated', 'exposed-secret'];
 
 export async function runCli(argv = process.argv.slice(2), io: CliIo = { stdout: process.stdout, stderr: process.stderr }): Promise<number> {
   let parsed: ParsedArgs;
@@ -56,7 +56,7 @@ export async function runCli(argv = process.argv.slice(2), io: CliIo = { stdout:
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected scanner failure.';
     if (parsed.options.format === 'json') {
-      io.stdout.write(`${JSON.stringify({ error: { message }, exitCodeCategory: 'error', suggestedExitCode: 2 }, null, 2)}\n`);
+      io.stdout.write(`${renderJsonError(message)}\n`);
     } else {
       io.stderr.write(`env-doctor: ${message}\n`);
     }
@@ -97,6 +97,11 @@ function parseArgs(argv: string[]): ParsedArgs {
 
     if (arg === '--json') {
       options.format = 'json';
+      continue;
+    }
+
+    if (arg === '--ci') {
+      options.ci = true;
       continue;
     }
 
@@ -215,13 +220,11 @@ function parseFormat(value: string): OutputFormat {
 }
 
 function helpText(): string {
-  return `env-doctor\n\nUsage:\n  env-doctor scan [options]\n\nOptions:\n  --json                         Print machine-readable JSON output\n  --format <human|json>           Select output format\n  --cwd <path>                    Scan a different working directory\n  --env-file <path>               Scan a specific env file; repeatable\n  --source <path>                 Scan a specific source file or directory; repeatable\n  --ignore <glob>                 Add an ignore glob; repeatable\n  --public-prefix <prefix>        Add public client env prefix; repeatable\n  --fail-on <list|none>           Comma-separated categories that produce exit code 1\n  --no-fail                       Always exit 0 unless a scan error occurs\n  --verbose                       Include scanned file metadata\n  --version                       Print version\n  --help                          Print help\n\nFinding categories:\n  ${FINDING_CATEGORIES.join(', ')}`;
+  return `env-doctor\n\nUsage:\n  env-doctor scan [options]\n\nOptions:\n  --json                         Print machine-readable JSON output\n  --format <human|json>           Select output format\n  --ci                           Fail on CI-risk categories: missing, contract, duplicated, exposed-secret\n  --cwd <path>                    Scan a different working directory\n  --env-file <path>               Scan a specific env file; repeatable\n  --source <path>                 Scan a specific source file or directory; repeatable\n  --ignore <glob>                 Add an ignore glob; repeatable\n  --public-prefix <prefix>        Add public client env prefix; repeatable\n  --fail-on <list|none>           Comma-separated categories that produce exit code 1\n  --no-fail                       Always exit 0 unless a scan error occurs\n  --verbose                       Include scanned file metadata\n  --version                       Print version\n  --help                          Print help\n\nFinding categories:\n  ${FINDING_CATEGORIES.join(', ')}`;
 }
 
 function getPackageVersion(): string {
-  const require = createRequire(import.meta.url);
-  const packageJson = require('../package.json') as { version?: string };
-  return packageJson.version ?? '0.0.0';
+  return getToolMetadata().version;
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {

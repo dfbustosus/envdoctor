@@ -54,6 +54,7 @@ env-doctor scan --json
 env-doctor scan --cwd ./apps/web
 env-doctor scan --env-file .env --env-file .env.example
 env-doctor scan --source src --ignore "**/generated/**"
+env-doctor scan --ci
 env-doctor scan --fail-on missing,exposed-secret
 env-doctor scan --no-fail
 ```
@@ -89,13 +90,29 @@ env-doctor scan --json
 
 The JSON report includes totals, findings, scanned files, source usages, dynamic usage warnings, configuration metadata, and the suggested exit code. It does not include raw env values.
 
+JSON output is versioned with `reportVersion: 1`, stable finding `code` values, `confidence` levels, tool metadata, and a schema reference. The schema is published in this package at `schemas/scan-report-v1.schema.json`.
+
+Example finding codes include:
+
+- `ENV_MISSING`
+- `ENV_EXAMPLE_MISSING_USED_KEY`
+- `ENV_UNUSED`
+- `ENV_DUPLICATED_SAME_FILE`
+- `ENV_PUBLIC_SECRET`
+- `ENV_EXAMPLE_SECRET_VALUE`
+- `ENV_SECRET_LIKE_VALUE`
+
 ## Exit codes
 
 - `0`: scan completed with no policy-failing findings.
 - `1`: scan completed and found configured failure categories.
 - `2`: scan could not complete because of configuration, parsing, or runtime errors.
 
-By default, all finding categories fail the command. Use `--fail-on` or `--no-fail` to adjust local or CI behavior.
+By default, local scans report warnings without failing. Use `--ci` to fail on missing, contract, duplicated, and exposed-secret findings, or use `--fail-on` / `--no-fail` to define a custom policy.
+
+## `.env.example` contract checks
+
+When `.env.example` exists, `env-doctor` treats it as contributor-facing documentation. It reports used variables that are missing from `.env.example` with `ENV_EXAMPLE_MISSING_USED_KEY`, and it reports secret-looking example values with `ENV_EXAMPLE_SECRET_VALUE`.
 
 ## CI example
 
@@ -114,7 +131,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx env-doctor scan --json
+      - run: npx env-doctor scan --ci --json
 ```
 
 ## Public prefixes

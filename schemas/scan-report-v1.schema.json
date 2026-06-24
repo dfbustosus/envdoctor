@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/dfbustosus/envdoctor/main/schemas/scan-report-v1.schema.json",
+  "title": "env-doctor scan report v1",
+  "type": "object",
+  "required": [
+    "reportVersion",
+    "schema",
+    "tool",
+    "cwd",
+    "config",
+    "envFiles",
+    "sourceFiles",
+    "usages",
+    "dynamicUsages",
+    "findings",
+    "issues",
+    "totals",
+    "exitCode"
+  ],
+  "properties": {
+    "reportVersion": {
+      "const": 1
+    },
+    "schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "tool": {
+      "$ref": "#/$defs/tool"
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "config": {
+      "type": "object",
+      "required": ["envFiles", "sourcePaths", "ignore", "publicPrefixes", "failOn", "ci"],
+      "properties": {
+        "envFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourcePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignore": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "publicPrefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "failOn": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/findingCategory"
+          }
+        },
+        "ci": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "envFiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scannedEnvFile"
+      }
+    },
+    "sourceFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "usages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/envUsage"
+      }
+    },
+    "dynamicUsages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dynamicEnvUsage"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "totals": {
+      "$ref": "#/$defs/totals"
+    },
+    "exitCode": {
+      "$ref": "#/$defs/exitCode"
+    },
+    "exitCodeCategory": {
+      "$ref": "#/$defs/exitCodeCategory"
+    },
+    "suggestedExitCode": {
+      "enum": [0, 1, 2]
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "const": "env-doctor"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "findingCategory": {
+      "enum": ["unused", "missing", "contract", "duplicated", "exposed-secret"]
+    },
+    "findingCode": {
+      "enum": [
+        "ENV_UNUSED",
+        "ENV_MISSING",
+        "ENV_EXAMPLE_MISSING_USED_KEY",
+        "ENV_DUPLICATED_SAME_FILE",
+        "ENV_PUBLIC_SECRET",
+        "ENV_EXAMPLE_SECRET_VALUE",
+        "ENV_SECRET_LIKE_VALUE"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "required": ["filePath"],
+      "properties": {
+        "filePath": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "finding": {
+      "type": "object",
+      "required": ["code", "category", "confidence", "severity", "key", "message", "locations"],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/findingCode"
+        },
+        "category": {
+          "$ref": "#/$defs/findingCategory"
+        },
+        "confidence": {
+          "enum": ["high", "medium", "low"]
+        },
+        "severity": {
+          "enum": ["warning", "error"]
+        },
+        "key": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/location"
+          }
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scannedEnvFile": {
+      "type": "object",
+      "required": ["filePath", "definitionCount", "keys"],
+      "properties": {
+        "filePath": {
+          "type": "string"
+        },
+        "definitionCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "envUsage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/location"
+        },
+        {
+          "type": "object",
+          "required": ["key", "syntax"],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "syntax": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "dynamicEnvUsage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/location"
+        },
+        {
+          "type": "object",
+          "required": ["syntax", "reason"],
+          "properties": {
+            "syntax": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "issue": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/location"
+        },
+        {
+          "type": "object",
+          "required": ["kind", "message"],
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "totals": {
+      "type": "object",
+      "required": ["used", "unused", "missing", "contract", "duplicated", "exposedSecrets", "envFiles", "sourceFiles", "dynamicUsages", "errors"],
+      "properties": {
+        "used": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unused": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contract": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exposedSecrets": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "envFiles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sourceFiles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dynamicUsages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "exitCodeCategory": {
+      "enum": ["clean", "findings", "error"]
+    },
+    "exitCode": {
+      "type": "object",
+      "required": ["category", "suggested"],
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/exitCodeCategory"
+        },
+        "suggested": {
+          "enum": [0, 1, 2]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
