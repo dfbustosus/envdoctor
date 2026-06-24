@@ -53,6 +53,10 @@ web_modules/
 # Optional eslint cache
 .eslintcache
 
+# Editor metadata
+.idea/
+.vscode/
+
 # Optional stylelint cache
 .stylelintcache
 
