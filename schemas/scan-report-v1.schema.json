@@ -66,6 +66,15 @@
             "$ref": "#/$defs/findingCategory"
           }
         },
+        "suppressions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/suppressionRule"
+          }
+        },
+        "configFile": {
+          "type": "string"
+        },
         "ci": {
           "type": "boolean"
         }
@@ -101,6 +110,21 @@
       "items": {
         "$ref": "#/$defs/finding"
       }
+    },
+    "activeFindings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "suppressedFindings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/suppressedFinding"
+      }
+    },
+    "findingTotals": {
+      "$ref": "#/$defs/findingDispositionTotals"
     },
     "issues": {
       "type": "array",
@@ -198,6 +222,60 @@
         },
         "details": {
           "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "suppressionRule": {
+      "type": "object",
+      "required": ["code", "key", "reason"],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/findingCode"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "reason": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "filePath": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "suppressedFinding": {
+      "type": "object",
+      "required": ["finding", "suppression"],
+      "properties": {
+        "finding": {
+          "$ref": "#/$defs/finding"
+        },
+        "suppression": {
+          "$ref": "#/$defs/suppressionRule"
+        }
+      },
+      "additionalProperties": false
+    },
+    "findingDispositionTotals": {
+      "type": "object",
+      "required": ["detectedFindings", "activeFindings", "suppressedLocations"],
+      "properties": {
+        "detectedFindings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "activeFindings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suppressedLocations": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "additionalProperties": false
