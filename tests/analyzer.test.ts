@@ -76,4 +76,61 @@ describe('analyzeScan', () => {
     }));
     expect(result.totals).toMatchObject({ missing: 0, contract: 1 });
   });
+
+  it('keeps secret findings homogeneous by code and reason context', () => {
+    const result = analyzeScan({
+      definitions: [
+        { filePath: '/project/.env', key: 'API_TOKEN', line: 1, value: 'fake_live_token_runtime' },
+        { filePath: '/project/.env.example', key: 'API_TOKEN', line: 1, value: 'fake_live_token_example' }
+      ],
+      dynamicUsages: [],
+      exampleFileCount: 1,
+      envFileCount: 2,
+      errorCount: 0,
+      knownRuntimeKeys: [],
+      publicPrefixes: ['NEXT_PUBLIC_', 'VITE_', 'PUBLIC_'],
+      sourceFileCount: 1,
+      usages: [{ filePath: '/project/src/index.ts', key: 'API_TOKEN', line: 1, syntax: 'process-env-dot' }]
+    });
+    const secretFindings = result.findings.filter((finding) => finding.category === 'exposed-secret');
+
+    expect(secretFindings).toHaveLength(2);
+    expect(secretFindings).toContainEqual(expect.objectContaining({
+      code: 'ENV_SECRET_LIKE_VALUE',
+      locations: [{ filePath: '/project/.env', line: 1 }]
+    }));
+    expect(secretFindings).toContainEqual(expect.objectContaining({
+      code: 'ENV_EXAMPLE_SECRET_VALUE',
+      locations: [{ filePath: '/project/.env.example', line: 1 }]
+    }));
+    expect(JSON.stringify(secretFindings)).not.toContain('fake_live_token_runtime');
+    expect(JSON.stringify(secretFindings)).not.toContain('fake_live_token_example');
+  });
+
+  it('emits separate same-file duplicate findings for the same key in different files', () => {
+    const result = analyzeScan({
+      definitions: [
+        { filePath: '/project/.env', key: 'API_URL', line: 1, value: 'one' },
+        { filePath: '/project/.env', key: 'API_URL', line: 2, value: 'two' },
+        { filePath: '/project/.env.local', key: 'API_URL', line: 1, value: 'three' },
+        { filePath: '/project/.env.local', key: 'API_URL', line: 2, value: 'four' }
+      ],
+      dynamicUsages: [],
+      exampleFileCount: 0,
+      envFileCount: 2,
+      errorCount: 0,
+      knownRuntimeKeys: [],
+      publicPrefixes: ['NEXT_PUBLIC_', 'VITE_', 'PUBLIC_'],
+      sourceFileCount: 1,
+      usages: [{ filePath: '/project/src/index.ts', key: 'API_URL', line: 1, syntax: 'process-env-dot' }]
+    });
+    const duplicateFindings = result.findings.filter((finding) => finding.code === 'ENV_DUPLICATED_SAME_FILE');
+
+    expect(duplicateFindings).toHaveLength(2);
+    expect(duplicateFindings.map((finding) => finding.locations.map((location) => location.filePath))).toEqual([
+      ['/project/.env', '/project/.env'],
+      ['/project/.env.local', '/project/.env.local']
+    ]);
+    expect(duplicateFindings.every((finding) => finding.details?.definitionCount === 2)).toBe(true);
+  });
 });
