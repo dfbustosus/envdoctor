@@ -1,21 +1,27 @@
 import type { DynamicEnvUsage, ScanFinding, ScanIssue, ScanResult, SourceLocation } from '../types.js';
+import { escapeHumanText } from '../text.js';
 
 export interface HumanReportOptions {
   verbose?: boolean;
 }
 
 export function renderHuman(result: ScanResult, options: HumanReportOptions = {}): string {
+  const activeFindings = result.activeFindings ?? result.findings;
   const lines: string[] = [
     'env-doctor scan',
     '',
     `OK ${formatCount(result.totals.used, 'variable')} used`,
     '',
-    `WARN ${formatCount(result.totals.unused, 'unused')}`,
-    `WARN ${formatCount(result.totals.missing, 'missing')}`,
-    `WARN ${formatCount(result.totals.contract, 'contract issue')}`,
-    `WARN ${formatCount(result.totals.exposedSecrets, 'exposed secret')}`,
-    `WARN ${formatCount(result.totals.duplicated, 'duplicated')}`
+    `WARN ${formatCount(countCategory(activeFindings, 'unused'), 'unused')}`,
+    `WARN ${formatCount(countCategory(activeFindings, 'missing'), 'missing')}`,
+    `WARN ${formatCount(countCategory(activeFindings, 'contract'), 'contract issue')}`,
+    `WARN ${formatCount(countCategory(activeFindings, 'exposed-secret'), 'exposed secret')}`,
+    `WARN ${formatCount(countCategory(activeFindings, 'duplicated'), 'duplicated')}`
   ];
+
+  if ((result.findingTotals?.suppressedLocations ?? 0) > 0) {
+    lines.push(`INFO ${formatCount(result.findingTotals?.suppressedLocations ?? 0, 'suppressed location')}`);
+  }
 
   if (result.totals.dynamicUsages > 0) {
     lines.push(`INFO ${formatCount(result.totals.dynamicUsages, 'dynamic env access')} could not be resolved statically`);
@@ -25,10 +31,21 @@ export function renderHuman(result: ScanResult, options: HumanReportOptions = {}
     lines.push(`ERROR ${formatCount(result.totals.errors, 'scan issue')} require attention`);
   }
 
-  if (result.findings.length > 0) {
+  if (activeFindings.length > 0) {
     lines.push('', 'Findings:');
-    for (const finding of result.findings) {
+    for (const finding of activeFindings) {
       lines.push(...formatFinding(finding));
+    }
+  }
+
+  if (options.verbose === true && (result.suppressedFindings?.length ?? 0) > 0) {
+    lines.push('', 'Suppressed findings:');
+    for (const suppressed of result.suppressedFindings ?? []) {
+      lines.push(`  INFO ${escapeHumanText(suppressed.finding.code)} ${escapeHumanText(suppressed.finding.key)}`);
+      lines.push(`    Reason: ${escapeHumanText(suppressed.suppression.reason)}`);
+      for (const location of suppressed.finding.locations) {
+        lines.push(`    at ${formatLocation(location)}`);
+      }
     }
   }
 
@@ -47,27 +64,36 @@ export function renderHuman(result: ScanResult, options: HumanReportOptions = {}
   }
 
   if (options.verbose === true) {
-    lines.push('', 'Scanned files:', `  Env files: ${result.envFiles.map((file) => file.filePath).join(', ') || 'none'}`, `  Source files: ${result.sourceFiles.length}`);
+    lines.push(
+      '',
+      'Scanned files:',
+      `  Env files: ${result.envFiles.map((file) => escapeHumanText(file.filePath)).join(', ') || 'none'}`,
+      `  Source files: ${result.sourceFiles.length}`
+    );
   }
 
-  if (result.findings.length === 0 && result.issues.length === 0) {
-    lines.push('', 'OK No dotenv issues found.');
+  if (activeFindings.length === 0 && result.issues.length === 0) {
+    lines.push('', (result.findingTotals?.suppressedLocations ?? 0) > 0 ? 'OK No active dotenv issues found.' : 'OK No dotenv issues found.');
   }
 
   return lines.join('\n');
 }
 
 function formatFinding(finding: ScanFinding): string[] {
-  const lines = [`  WARN ${finding.code} ${finding.key}`, `    ${finding.message}`, `    Confidence: ${finding.confidence}`];
+  const lines = [
+    `  WARN ${escapeHumanText(finding.code)} ${escapeHumanText(finding.key)}`,
+    `    ${escapeHumanText(finding.message)}`,
+    `    Confidence: ${escapeHumanText(finding.confidence)}`
+  ];
   const action = typeof finding.details?.action === 'string' ? finding.details.action : undefined;
   if (action !== undefined) {
-    lines.push(`    Action: ${action}`);
+    lines.push(`    Action: ${escapeHumanText(action)}`);
   }
 
   const reasons = Array.isArray(finding.details?.reasons) ? finding.details.reasons : [];
   for (const reason of reasons) {
     if (typeof reason === 'string') {
-      lines.push(`    Reason: ${reason}`);
+      lines.push(`    Reason: ${escapeHumanText(reason)}`);
     }
   }
 
@@ -79,17 +105,21 @@ function formatFinding(finding: ScanFinding): string[] {
 }
 
 function formatDynamicUsage(usage: DynamicEnvUsage): string {
-  return `  INFO ${formatLocation(usage)} ${usage.reason}`;
+  return `  INFO ${formatLocation(usage)} ${escapeHumanText(usage.reason)}`;
 }
 
 function formatIssue(issue: ScanIssue): string {
-  return `  ERROR ${issue.kind} ${formatLocation(issue)} ${issue.message}`;
+  return `  ERROR ${escapeHumanText(issue.kind)} ${formatLocation(issue)} ${escapeHumanText(issue.message)}`;
 }
 
 function formatLocation(location: SourceLocation): string {
   const line = location.line === undefined ? '' : `:${location.line}`;
   const column = location.column === undefined ? '' : `:${location.column}`;
-  return `${location.filePath}${line}${column}`;
+  return `${escapeHumanText(location.filePath)}${line}${column}`;
+}
+
+function countCategory(findings: ScanFinding[], category: ScanFinding['category']): number {
+  return findings.filter((finding) => finding.category === category).length;
 }
 
 function formatCount(count: number, singular: string): string {
