@@ -6,7 +6,7 @@ Developers can install `env-doctor`, run `env-doctor scan`, and receive an actio
 
 ## Scope boundaries
 
-In scope for the baseline: the `scan` command, dotenv file discovery, JS/TS static usage detection, same-file duplicate detection, `.env.example` contract checks, missing/unused classification, conservative secret exposure heuristics, human output, versioned JSON output, deterministic exit codes, tests, CI, and npm package metadata.
+In scope for the baseline: the `scan` command, dotenv file discovery, JS/TS static usage detection, same-file duplicate detection, `.env.example` contract checks, missing/unused classification, conservative secret exposure heuristics, validated project configuration, reason-required suppressions, human output, versioned JSON output, deterministic exit codes, tests, CI, and npm package metadata.
 
 Out of scope for the baseline: automatic fixes, runtime production validation, deployment-provider secret reads, encrypted secret stores, framework-specific deep integrations, telemetry, web UI, and non-JS/TS language scanning.
 
@@ -20,6 +20,10 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 - Dynamic env usage is uncertainty metadata, not guessed usage.
 - Secret diagnostics must not include raw values.
 - JSON output is a versioned public contract with stable finding codes and confidence levels.
+- `.env-doctor.json` is discovered only in the effective scan cwd; explicit `--config` replaces automatic discovery.
+- Configuration is validated as untrusted input and invalid configuration is exit code `2` even under non-failing policy.
+- Suppressions require an exact finding code, key, reason, and optional cwd-relative file path. File-scoped rules suppress only matching locations.
+- Existing `findings` and category totals remain detected-finding contracts; active findings, suppressed records, and explicitly named disposition units are additive report-v1 fields.
 
 ## Prior decisions
 
@@ -28,6 +32,7 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 - Default public prefixes: `NEXT_PUBLIC_`, `VITE_`, `PUBLIC_`.
 - Exit code categories: clean `0`, findings `1`, scan error `2`; local scans do not fail on findings unless `--ci` or `--fail-on` is used.
 - Public API: scanner entrypoint, config loader, report types, finding types, and reporter helpers.
+- Configuration precedence: built-in defaults, project JSON, then explicit CLI/library options. Empty arrays and `false` are intentional overrides.
 
 ## Task breakdown
 
@@ -35,8 +40,9 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 2. Discovery: env files, source files, default ignores, explicit overrides.
 3. Parsing: dotenv definitions with line locations and AST source usage detection.
 4. Analysis: used, unused, missing, `.env.example` contract, duplicated, exposed-secret findings.
-5. Reporting: compact human output and stable versioned JSON output.
-6. Verification: unit tests, CLI fixture tests, typecheck, lint, build, and npm pack dry run.
+5. Disposition: partition findings into active and reason-suppressed locations before exit policy.
+6. Reporting: compact human output and stable versioned JSON output with suppression audit data.
+7. Verification: unit tests, CLI fixture tests, schema validation, typecheck, lint, build, and npm pack dry run.
 
 ## Verification criteria
 
@@ -45,5 +51,7 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 - Empty dotenv values, quoted values, comments, duplicates, destructuring, bracket access, and dynamic access are tested.
 - JSON output is parseable and contains no raw env values.
 - JSON output includes `reportVersion`, `schema`, `tool`, stable finding `code`, `confidence`, and `exitCode`.
+- Automatic and explicit config loading, strict validation, CLI precedence, exact suppression matching, path-scoped partial suppression, and exit policy are tested.
+- Suppressed secret findings and hostile suppression text cannot leak raw values or terminal control characters.
 - Human output is compact and actionable.
 - Release gates pass: typecheck, lint, tests, build, and `npm pack --dry-run`.
