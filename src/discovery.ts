@@ -6,7 +6,7 @@ import fastGlob from 'fast-glob';
 import type { ResolvedConfig } from './types.js';
 
 export async function discoverEnvFiles(config: ResolvedConfig): Promise<string[]> {
-  if (config.envFiles.length > 0) {
+  if (config.envFilesExplicit) {
     return uniqueSorted(config.envFiles);
   }
 
@@ -15,7 +15,7 @@ export async function discoverEnvFiles(config: ResolvedConfig): Promise<string[]
 }
 
 export async function discoverSourceFiles(config: ResolvedConfig): Promise<string[]> {
-  if (config.sourcePaths.length > 0) {
+  if (config.sourcePathsExplicit) {
     const patterns = await Promise.all(config.sourcePaths.map((sourcePath) => sourcePathToGlob(config, sourcePath)));
     return discoverFiles(config, patterns);
   }
