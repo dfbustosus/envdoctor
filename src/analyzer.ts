@@ -88,22 +88,25 @@ export function analyzeScan(input: AnalyzeInput): AnalyzeResult {
     }
   }
 
-  for (const [key, definitions] of duplicatedDefinitionsByKey(input.definitions)) {
-    if (definitions.length > 1) {
-      findings.push({
-        code: 'ENV_DUPLICATED_SAME_FILE',
-        category: 'duplicated',
-        confidence: 'high',
-        severity: 'warning',
-        key,
-        message: `${key} is defined ${definitions.length} times in the same env file.`,
-        locations: definitions.map(stripValue),
-        details: {
-          action: 'Keep one definition in the file or rename the variable if both meanings are intentional.',
-          definitionCount: definitions.length
-        }
-      });
+  for (const definitions of sameFileDuplicateGroups(input.definitions)) {
+    const key = definitions[0]?.key;
+    if (key === undefined) {
+      continue;
     }
+
+    findings.push({
+      code: 'ENV_DUPLICATED_SAME_FILE',
+      category: 'duplicated',
+      confidence: 'high',
+      severity: 'warning',
+      key,
+      message: `${key} is defined ${definitions.length} times in the same env file.`,
+      locations: definitions.map(stripValue),
+      details: {
+        action: 'Keep one definition in the file or rename the variable if both meanings are intentional.',
+        definitionCount: definitions.length
+      }
+    });
   }
 
   for (const [key, definitions] of definitionsByKey) {
@@ -115,23 +118,25 @@ export function analyzeScan(input: AnalyzeInput): AnalyzeResult {
       continue;
     }
 
-    const reasonCodes = [...new Set(riskyDefinitions.flatMap(({ risk }) => risk.reasonCodes))];
-    const reasons = [...new Set(riskyDefinitions.flatMap(({ risk }) => risk.reasons))];
-    findings.push({
-      code: exposedSecretCode(reasonCodes),
-      category: 'exposed-secret',
-      confidence: 'medium',
-      severity: 'warning',
-      key,
-      message: `${key} looks like it could expose secret material. Raw values are redacted.`,
-      locations: riskyDefinitions.map(({ definition }) => stripValue(definition)),
-      details: {
-        action: 'Remove public prefixes from secrets, replace example values with placeholders, and rotate any exposed credentials.',
-        redacted: true,
-        reasonCodes,
-        reasons
-      }
-    });
+    for (const riskGroup of groupHomogeneousSecretRisks(riskyDefinitions)) {
+      const reasonCodes = riskGroup[0]?.risk.reasonCodes ?? [];
+      const reasons = riskGroup[0]?.risk.reasons ?? [];
+      findings.push({
+        code: exposedSecretCode(reasonCodes),
+        category: 'exposed-secret',
+        confidence: 'medium',
+        severity: 'warning',
+        key,
+        message: `${key} looks like it could expose secret material. Raw values are redacted.`,
+        locations: riskGroup.map(({ definition }) => stripValue(definition)),
+        details: {
+          action: 'Remove public prefixes from secrets, replace example values with placeholders, and rotate any exposed credentials.',
+          redacted: true,
+          reasonCodes,
+          reasons
+        }
+      });
+    }
   }
 
   return {
@@ -179,7 +184,7 @@ function groupByKey<T extends { key: string }>(entries: T[]): Map<string, T[]> {
   return grouped;
 }
 
-function duplicatedDefinitionsByKey(definitions: ParsedEnvDefinition[]): Map<string, ParsedEnvDefinition[]> {
+function sameFileDuplicateGroups(definitions: ParsedEnvDefinition[]): ParsedEnvDefinition[][] {
   const byFileAndKey = new Map<string, ParsedEnvDefinition[]>();
 
   for (const definition of definitions) {
@@ -189,22 +194,25 @@ function duplicatedDefinitionsByKey(definitions: ParsedEnvDefinition[]): Map<str
     byFileAndKey.set(identity, existing);
   }
 
-  const duplicatesByKey = new Map<string, ParsedEnvDefinition[]>();
-  for (const duplicateDefinitions of byFileAndKey.values()) {
-    if (duplicateDefinitions.length <= 1) {
-      continue;
-    }
+  return [...byFileAndKey.values()]
+    .filter((group) => group.length > 1)
+    .sort((left, right) => {
+      const leftDefinition = left[0];
+      const rightDefinition = right[0];
+      return `${leftDefinition?.filePath ?? ''}\u0000${leftDefinition?.key ?? ''}`
+        .localeCompare(`${rightDefinition?.filePath ?? ''}\u0000${rightDefinition?.key ?? ''}`);
+    });
+}
 
-    const key = duplicateDefinitions[0]?.key;
-    if (key === undefined) {
-      continue;
-    }
-
-    const existing = duplicatesByKey.get(key) ?? [];
-    duplicatesByKey.set(key, [...existing, ...duplicateDefinitions]);
+function groupHomogeneousSecretRisks<T extends { risk: { reasonCodes: SecretRiskReasonCode[] } }>(entries: T[]): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const entry of entries) {
+    const identity = [...entry.risk.reasonCodes].sort().join('\u0000');
+    const group = groups.get(identity) ?? [];
+    group.push(entry);
+    groups.set(identity, group);
   }
-
-  return duplicatesByKey;
+  return [...groups.values()];
 }
 
 function stripValue(definition: ParsedEnvDefinition): { filePath: string; line?: number; column?: number } {
@@ -234,6 +242,11 @@ function sortFindings(findings: ScanFinding[]): ScanFinding[] {
       return categoryDelta;
     }
 
-    return left.key.localeCompare(right.key);
+    const keyDelta = left.key.localeCompare(right.key);
+    if (keyDelta !== 0) {
+      return keyDelta;
+    }
+
+    return (left.locations[0]?.filePath ?? '').localeCompare(right.locations[0]?.filePath ?? '');
   });
 }
