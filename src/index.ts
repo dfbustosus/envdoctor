@@ -5,12 +5,14 @@ export { renderJson, renderJsonError } from './reporters/json.js';
 export type {
   DynamicEnvUsage,
   EnvDefinitionSummary,
+  EnvDoctorConfig,
   EnvUsage,
   EnvUsageSyntax,
   ExitCodeCategory,
   FindingCategory,
   FindingCode,
   FindingConfidence,
+  FindingDispositionTotals,
   FindingSeverity,
   JsonErrorReport,
   OutputFormat,
@@ -22,5 +24,7 @@ export type {
   ScanTotals,
   ScannedEnvFile,
   SecretRiskReasonCode,
-  SourceLocation
+  SourceLocation,
+  SuppressedFinding,
+  SuppressionRule
 } from './types.js';
