@@ -52,6 +52,7 @@ Useful options:
 ```sh
 env-doctor scan --json
 env-doctor scan --cwd ./apps/web
+env-doctor scan --config ./config/env-doctor.json
 env-doctor scan --env-file .env --env-file .env.example
 env-doctor scan --source src --ignore "**/generated/**"
 env-doctor scan --ci
@@ -110,6 +111,41 @@ Example finding codes include:
 
 By default, local scans report warnings without failing. Use `--ci` to fail on missing, contract, duplicated, and exposed-secret findings, or use `--fail-on` / `--no-fail` to define a custom policy.
 
+## Project configuration and suppressions
+
+`env-doctor` automatically loads `.env-doctor.json` from the effective scan directory. It does not search parent directories. Use `--config <path>` to select a different file; relative paths are resolved from `--cwd`.
+
+```json
+{
+  "configVersion": 1,
+  "ci": true,
+  "failOn": ["missing", "contract", "duplicated", "exposed-secret"],
+  "suppressions": [
+    {
+      "code": "ENV_MISSING",
+      "key": "VERCEL_URL",
+      "reason": "Injected by Vercel at runtime"
+    },
+    {
+      "code": "ENV_MISSING",
+      "key": "INTERNAL_URL",
+      "filePath": "src/platform.ts",
+      "reason": "Injected only for this deployment entrypoint"
+    }
+  ]
+}
+```
+
+Every suppression requires an exact finding `code`, exact variable `key`, and non-empty `reason`. Matching is case-sensitive. An optional `filePath` limits suppression to that cwd-relative finding location; it does not hide matching locations in other files.
+
+Suppression reasons are audit metadata and appear in JSON plus verbose human output. Write operational explanations only; never place credentials or env values in a reason.
+
+Configuration is validated strictly. Unknown properties, unsupported codes, duplicate rules, malformed JSON, and missing reasons stop the scan with exit code `2`. `--no-fail` never hides configuration errors.
+
+Explicit CLI or library options override config-file values. CLI `--ci` enforces the default CI categories even if the project config has a weaker policy; use an explicit `--fail-on` or `--no-fail` on that invocation to override it. `--no-ci` disables the config's CI default selection, but an explicit config `failOn` still applies until `--no-fail` is used.
+
+JSON reports retain all detected findings in `findings`, expose unsuppressed findings in `activeFindings`, and provide auditable `suppressedFindings` with reasons. `findingTotals` reports detected finding records, active finding records, and suppressed locations without pretending those are interchangeable units. Human output shows a compact suppressed-location count; use `--verbose` for suppression details.
+
 ## `.env.example` contract checks
 
 When `.env.example` exists, `env-doctor` treats it as contributor-facing documentation. It reports used variables that are missing from `.env.example` with `ENV_EXAMPLE_MISSING_USED_KEY`, and it reports secret-looking example values with `ENV_EXAMPLE_SECRET_VALUE`.
@@ -160,6 +196,8 @@ env-doctor scan --public-prefix CLIENT_PUBLIC_
 `env-doctor` does not validate production runtime state. It reports what is present in selected dotenv files and statically detectable source usage.
 
 The baseline intentionally does not support automatic fixes, cloud secret managers, encrypted env stores, or every programming language. Dynamic env access is surfaced as uncertainty because pretending to know those keys would create false confidence.
+
+Selected env files currently form one repository-wide definition set, and discovered `.env.example` files form one repository-wide contract set. They are not interpreted as dotenv precedence layers or per-application environments.
 
 ## Library API
 
