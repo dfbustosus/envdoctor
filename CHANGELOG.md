@@ -6,7 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-12
+
+### Changed
+
+- publish the package as unscoped `dotenv-drift` while preserving the `env-doctor` executable and tool identity
+
 ## [0.1.0] - 2026-07-12
+
+This candidate was not published because npm rejected the original package name.
 
 ### Added
 

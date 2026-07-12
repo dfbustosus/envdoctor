@@ -2,7 +2,7 @@
 
 ## Outcomes
 
-Developers can install `env-doctor`, run `env-doctor scan`, and receive an actionable report of dotenv health: used variables, unused definitions, missing definitions, `.env.example` contract drift, duplicates, and exposed secret risks. Reports are safe for terminals and CI because raw env values are never printed.
+Developers can install `dotenv-drift`, run `env-doctor scan`, and receive an actionable report of dotenv health: used variables, unused definitions, missing definitions, `.env.example` contract drift, duplicates, and exposed secret risks. Reports are safe for terminals and CI because raw env values are never printed.
 
 ## Scope boundaries
 
@@ -12,7 +12,7 @@ Out of scope for the baseline: automatic fixes, runtime production validation, d
 
 ## Constraints and assumptions
 
-- The package targets npm with the binary name `env-doctor`.
+- The npm package name is `dotenv-drift`, with the binary name `env-doctor`.
 - TypeScript source emits ESM-compatible package output.
 - The scanner core stays independent from CLI rendering.
 - Dotenv parsing must preserve duplicate definitions and line locations.

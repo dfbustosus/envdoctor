@@ -35,7 +35,7 @@ Because an unpublished package cannot always be selected as a package-scoped tok
 
 1. Create a protected tag matching `v${package.json.version}` on the exact current `main` commit that will dispatch the workflow.
 2. Open the **Publish npm package** workflow manually from `main`.
-3. Enter the existing tag and exact `env-doctor@VERSION` confirmation.
+3. Enter the existing tag and exact `dotenv-drift@VERSION` confirmation.
 4. Review the validation job and uploaded tarball checksum.
 5. Approve the protected `npm-release` environment deployment.
 6. The publish job publishes the validated tarball with public access and npm provenance.
@@ -47,9 +47,9 @@ Pushing a tag alone does not publish. The workflow has no tag-push trigger.
 Verify from a temporary directory:
 
 ```sh
-npm view env-doctor version dist-tags --json
-npm install env-doctor@VERSION
-npx env-doctor --version
+npm view dotenv-drift version dist-tags --json
+npm install dotenv-drift@VERSION
+npm exec -- env-doctor --version
 ```
 
 Confirm the npm provenance statement, repository link, README, binary, root export, and schema subpath.

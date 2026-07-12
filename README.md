@@ -24,13 +24,15 @@ WARN 3 duplicated
 Requires Node.js 22.12 or later on the Node 22 line, or Node.js 24. Node.js 20 is not supported because it reached upstream end-of-life.
 
 ```sh
-npm install --save-dev env-doctor
+npm install --save-dev dotenv-drift
 ```
+
+The npm package is `dotenv-drift`; it installs the `env-doctor` command.
 
 You can also try it without installing:
 
 ```sh
-npx env-doctor scan
+npx --package dotenv-drift env-doctor scan
 ```
 
 ## What it detects
@@ -46,7 +48,7 @@ Secret diagnostics are conservative and value-safe: raw env values are not print
 ## Quick start
 
 ```sh
-npx env-doctor scan
+npx --package dotenv-drift env-doctor scan
 ```
 
 Useful options:
@@ -95,10 +97,10 @@ The JSON report includes totals, findings, scanned files, source usages, dynamic
 
 JSON output is versioned with `reportVersion: 1`, stable finding `code` values, `confidence` levels, tool metadata, and a schema reference. The schema is published in this package at `schemas/scan-report-v1.schema.json`.
 
-The installed schema is exported as `env-doctor/schema/scan-report-v1.json`. In ESM, resolve it without relying on package internals:
+The installed schema is exported as `dotenv-drift/schema/scan-report-v1.json`. In ESM, resolve it without relying on package internals:
 
 ```js
-const schemaUrl = import.meta.resolve('env-doctor/schema/scan-report-v1.json');
+const schemaUrl = import.meta.resolve('dotenv-drift/schema/scan-report-v1.json');
 ```
 
 Example finding codes include:
@@ -175,7 +177,7 @@ jobs:
           node-version: 22.12.0
           cache: npm
       - run: npm ci
-      - run: npx env-doctor scan --ci --json
+      - run: npx --package dotenv-drift env-doctor scan --ci --json
 ```
 
 ## Public prefixes
@@ -210,7 +212,7 @@ Selected env files currently form one repository-wide definition set, and discov
 ## Library API
 
 ```ts
-import { scanProject } from 'env-doctor';
+import { scanProject } from 'dotenv-drift';
 
 const result = await scanProject({ cwd: process.cwd() });
 console.log(result.totals);
