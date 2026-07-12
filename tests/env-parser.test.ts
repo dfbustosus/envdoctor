@@ -50,4 +50,19 @@ describe('parseEnvContent', () => {
     ]);
     expect(parsed.definitions.map((definition) => definition.key)).toEqual(['VALID']);
   });
+
+  it('parses BOM, CRLF, multiline quotes, backticks, and escaped double quotes', () => {
+    const parsed = parseEnvContent(
+      '/project/.env',
+      '\uFEFFDOUBLE="line one\\nline two"\r\nMULTILINE="first\r\nsecond"\r\nBACKTICK=`value`\r\nESCAPED="say \\"hello\\""'
+    );
+
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.definitions.map(({ key, value }) => [key, value])).toEqual([
+      ['DOUBLE', 'line one\nline two'],
+      ['MULTILINE', 'first\nsecond'],
+      ['BACKTICK', 'value'],
+      ['ESCAPED', 'say \\"hello\\"']
+    ]);
+  });
 });
