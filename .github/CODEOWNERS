@@ -1,0 +1,6 @@
+/.github/workflows/ @dfbustosus
+/package.json @dfbustosus
+/package-lock.json @dfbustosus
+/scripts/validate-packed-package.mjs @dfbustosus
+/scripts/validate-release.mjs @dfbustosus
+/scripts/verify-release-checks.mjs @dfbustosus
