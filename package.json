@@ -1,6 +1,6 @@
 {
-  "name": "env-doctor",
-  "version": "0.1.0",
+  "name": "dotenv-drift",
+  "version": "0.1.1",
   "description": "Find dotenv configuration drift, missing variables, duplicates, and exposed secret risks.",
   "type": "module",
   "license": "MIT",
