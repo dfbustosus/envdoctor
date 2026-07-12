@@ -46,8 +46,7 @@ try {
   const errorReport = JSON.parse(invalidConfig.stdout);
   assert(errorReport.exitCode?.suggested === 2, 'expected JSON config error report');
 
-  const packed = spawnSync(
-    npmExecutable(),
+  const packed = spawnNpm(
     ['pack', '--json', '--ignore-scripts', '--pack-destination', fixture],
     { cwd: repositoryRoot, encoding: 'utf8' }
   );
@@ -59,8 +58,7 @@ try {
   const consumer = path.join(fixture, 'consumer');
   mkdirSync(consumer, { recursive: true });
   writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'env-doctor-smoke', private: true, type: 'module' }));
-  const installed = spawnSync(
-    npmExecutable(),
+  const installed = spawnNpm(
     ['install', path.join(fixture, tarballName), '--ignore-scripts', '--no-audit', '--no-fund'],
     { cwd: consumer, encoding: 'utf8' }
   );
@@ -90,6 +88,10 @@ function assert(condition, message) {
   }
 }
 
-function npmExecutable() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+function spawnNpm(args, options) {
+  const npmCli = process.env.npm_execpath;
+  if (npmCli === undefined) {
+    throw new Error('npm_execpath is required for the package smoke test');
+  }
+  return spawnSync(process.execPath, [npmCli, ...args], options);
 }
