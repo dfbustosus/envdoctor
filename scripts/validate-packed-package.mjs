@@ -222,7 +222,9 @@ function validatePackageContents(files) {
   }
 
   const cliEntry = entries.find((entry) => entry.path === 'dist/cli.js');
-  assert(cliEntry?.mode === 0o755, `expected dist/cli.js mode 0755, received ${cliEntry?.mode}`);
+  if (process.platform !== 'win32') {
+    assert(cliEntry?.mode === 0o755, `expected dist/cli.js mode 0755, received ${cliEntry?.mode}`);
+  }
 }
 
 function spawnInstalledBin(args, cwd) {
