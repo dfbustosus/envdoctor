@@ -272,7 +272,7 @@ function getStaticPropertyName(node: NodeRecord | undefined, computed: boolean):
     const quasis = getArray(node, 'quasis');
     const firstQuasi = quasis[0];
     if (expressions.length === 0 && isNode(firstQuasi)) {
-      const value = getNode(firstQuasi, 'value');
+      const value = getRecord(firstQuasi, 'value');
       return getString(value, 'cooked') ?? getString(value, 'raw');
     }
   }
@@ -338,13 +338,20 @@ function getArray(node: NodeRecord, key: string): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function getString(node: NodeRecord | undefined, key: string): string | undefined {
+function getString(node: Record<string, unknown> | undefined, key: string): string | undefined {
   if (node === undefined) {
     return undefined;
   }
 
   const value = node[key];
   return typeof value === 'string' ? value : undefined;
+}
+
+function getRecord(node: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+  const value = node[key];
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }
 
 function getBoolean(node: NodeRecord, key: string): boolean {

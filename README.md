@@ -21,6 +21,8 @@ WARN 3 duplicated
 
 ## Install
 
+Requires Node.js 22.12 or later on the Node 22 line, or Node.js 24. Node.js 20 is not supported because it reached upstream end-of-life.
+
 ```sh
 npm install --save-dev env-doctor
 ```
@@ -93,6 +95,12 @@ The JSON report includes totals, findings, scanned files, source usages, dynamic
 
 JSON output is versioned with `reportVersion: 1`, stable finding `code` values, `confidence` levels, tool metadata, and a schema reference. The schema is published in this package at `schemas/scan-report-v1.schema.json`.
 
+The installed schema is exported as `env-doctor/schema/scan-report-v1.json`. In ESM, resolve it without relying on package internals:
+
+```js
+const schemaUrl = import.meta.resolve('env-doctor/schema/scan-report-v1.json');
+```
+
 Example finding codes include:
 
 - `ENV_MISSING`
@@ -159,12 +167,12 @@ on: [pull_request]
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: 22
+          node-version: 22.12.0
           cache: npm
       - run: npm ci
       - run: npx env-doctor scan --ci --json
@@ -213,11 +221,14 @@ The public API exports scanner, config, report, and finding types. Parser intern
 ## Development
 
 ```sh
-npm install
+npm ci
 npm run typecheck
 npm run lint
 npm test
+npm run test:coverage
 npm audit
 npm run build
-npm pack --dry-run
+npm run pack:validate
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution requirements, [SECURITY.md](SECURITY.md) for private vulnerability reporting, and [docs/releasing.md](docs/releasing.md) for the maintainer-only release process.

@@ -13,6 +13,57 @@ afterEach(async () => {
 });
 
 describe('env-doctor CLI', () => {
+  it('prints help when no command is provided', async () => {
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runCli([], { stdout, stderr });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.output).toBe('');
+    expect(stdout.output).toContain('Usage:');
+    expect(stdout.output).toContain('--config <path>');
+  });
+
+  it('prints the package version', async () => {
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runCli(['--version'], { stdout, stderr });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.output).toBe('');
+    expect(stdout.output.trim()).toMatch(/^\d+\.\d+\.\d+$/u);
+  });
+
+  it('rejects unknown commands and unsafe command text', async () => {
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runCli(['bad\n\u001bcommand'], { stdout, stderr });
+
+    expect(exitCode).toBe(2);
+    expect(stdout.output).toBe('');
+    expect(stderr.output).toContain('bad\\u{000a}\\u{001b}command');
+    expect(stderr.output).not.toContain('bad\n');
+  });
+
+  it.each([
+    [['scan', '--unknown'], 'Unknown argument --unknown.'],
+    [['scan', '--cwd'], '--cwd requires a value.'],
+    [['scan', '--format', 'xml'], '--format must be "human" or "json".'],
+    [['scan', '--fail-on', 'unknown'], 'Unsupported --fail-on category "unknown".']
+  ])('rejects invalid CLI arguments', async (args, expectedMessage) => {
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runCli(args, { stdout, stderr });
+
+    expect(exitCode).toBe(2);
+    expect(stdout.output).toBe('');
+    expect(stderr.output).toContain(expectedMessage);
+  });
+
   it('prints human scan output without leaking secret values', async () => {
     const fixture = await createFixtureProject();
     const stdout = createWritableBuffer();
@@ -89,6 +140,42 @@ describe('env-doctor CLI', () => {
     expect(exitCode).toBe(1);
     expect(stderr.output).toBe('');
     expect(result.config.failOn).toEqual(['missing', 'contract', 'duplicated', 'exposed-secret']);
+  });
+
+  it('supports --no-ci and --no-fail as explicit config overrides', async () => {
+    const fixture = await createFixtureProject();
+    await writeConfig(fixture, '.env-doctor.json', { ci: true, failOn: ['missing'] });
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runCli(['scan', '--cwd', fixture, '--no-ci', '--no-fail', '--format', 'json'], { stdout, stderr });
+    const result = JSON.parse(stdout.output) as { config: { ci: boolean; failOn: string[] } };
+
+    expect(exitCode).toBe(0);
+    expect(stderr.output).toBe('');
+    expect(result.config).toMatchObject({ ci: false, failOn: [] });
+  });
+
+  it('accepts explicit discovery, ignore, prefix, format, verbose, and fail policy options', async () => {
+    const fixture = await createFixtureProject();
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runCli([
+      'scan',
+      '--cwd', fixture,
+      '--env-file', '.env',
+      '--source', 'src',
+      '--ignore', '**/generated/**',
+      '--public-prefix', 'CLIENT_PUBLIC_',
+      '--format', 'human',
+      '--fail-on', 'none',
+      '--verbose'
+    ], { stdout, stderr });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.output).toBe('');
+    expect(stdout.output).toContain('Scanned files:');
   });
 
   it('reports .env.example contract drift when an example file exists', async () => {
