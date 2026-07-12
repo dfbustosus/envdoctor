@@ -7,6 +7,7 @@ import { parseEnvFile } from './env-parser.js';
 import type { ParsedEnvDefinition, ParsedEnvFile } from './internal-types.js';
 import { determineExitCodeCategory, exitCodeForCategory } from './policy.js';
 import { parseSourceFile, type ParsedSourceFile } from './source-parser.js';
+import { applySuppressions } from './suppressions.js';
 import type { EnvUsage, ScanIssue, ScanOptions, ScanResult, ScannedEnvFile } from './types.js';
 import { getToolMetadata, REPORT_SCHEMA_URL, REPORT_VERSION } from './version.js';
 
@@ -37,7 +38,15 @@ export async function scanProject(options: ScanOptions = {}): Promise<ScanResult
     errorCount: issues.length
   });
 
-  const exitCodeCategory = determineExitCodeCategory(analysis.findings, issues.length, config.failOn);
+  const normalizedFindings = analysis.findings.map((finding) => ({
+    ...finding,
+    locations: finding.locations.map((location) => ({
+      ...location,
+      filePath: relativeToCwd(config.cwd, location.filePath)
+    }))
+  }));
+  const suppressionResult = applySuppressions(normalizedFindings, config.suppressions);
+  const exitCodeCategory = determineExitCodeCategory(suppressionResult.activeFindings, issues.length, config.failOn);
   const suggestedExitCode = exitCodeForCategory(exitCodeCategory);
 
   return {
@@ -46,11 +55,13 @@ export async function scanProject(options: ScanOptions = {}): Promise<ScanResult
     tool: getToolMetadata(),
     cwd: config.cwd,
     config: {
-      envFiles: config.envFiles.length > 0 ? config.envFiles.map((filePath) => relativeToCwd(config.cwd, filePath)) : [...config.envFileNames],
-      sourcePaths: config.sourcePaths.length > 0 ? config.sourcePaths.map((filePath) => relativeToCwd(config.cwd, filePath)) : ['.'],
+      envFiles: config.envFilesExplicit ? config.envFiles.map((filePath) => relativeToCwd(config.cwd, filePath)) : [...config.envFileNames],
+      sourcePaths: config.sourcePathsExplicit ? config.sourcePaths.map((filePath) => relativeToCwd(config.cwd, filePath)) : ['.'],
       ignore: config.ignore,
       publicPrefixes: config.publicPrefixes,
       failOn: config.failOn,
+      suppressions: config.suppressions,
+      ...(config.configFile === undefined ? {} : { configFile: relativeToCwd(config.cwd, config.configFile) }),
       ci: config.ci
     },
     envFiles: parsedEnvFiles.map((file) => summarizeEnvFile(config.cwd, file)),
@@ -63,13 +74,17 @@ export async function scanProject(options: ScanOptions = {}): Promise<ScanResult
       ...usage,
       filePath: relativeToCwd(config.cwd, usage.filePath)
     })),
-    findings: analysis.findings.map((finding) => ({
-      ...finding,
-      locations: finding.locations.map((location) => ({
-        ...location,
-        filePath: relativeToCwd(config.cwd, location.filePath)
-      }))
-    })),
+    findings: normalizedFindings,
+    activeFindings: suppressionResult.activeFindings,
+    suppressedFindings: suppressionResult.suppressedFindings,
+    findingTotals: {
+      detectedFindings: normalizedFindings.length,
+      activeFindings: suppressionResult.activeFindings.length,
+      suppressedLocations: suppressionResult.suppressedFindings.reduce(
+        (total, suppressed) => total + suppressed.finding.locations.length,
+        0
+      )
+    },
     issues: issues.map((issue) => ({
       ...issue,
       filePath: relativeToCwd(config.cwd, issue.filePath)

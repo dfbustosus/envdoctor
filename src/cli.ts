@@ -1,9 +1,12 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { scanProject } from './scanner.js';
 import { renderHuman } from './reporters/human.js';
 import { renderJson, renderJsonError } from './reporters/json.js';
+import { escapeHumanText } from './text.js';
 import type { FindingCategory, OutputFormat, ScanOptions } from './types.js';
 import { getToolMetadata } from './version.js';
 
@@ -26,7 +29,7 @@ export async function runCli(argv = process.argv.slice(2), io: CliIo = { stdout:
   try {
     parsed = parseArgs(argv);
   } catch (error) {
-    io.stderr.write(`env-doctor: ${error instanceof Error ? error.message : 'Invalid command line arguments.'}\n`);
+    io.stderr.write(`env-doctor: ${escapeHumanText(error instanceof Error ? error.message : 'Invalid command line arguments.')}\n`);
     io.stderr.write('Run env-doctor --help for usage.\n');
     return 2;
   }
@@ -42,7 +45,7 @@ export async function runCli(argv = process.argv.slice(2), io: CliIo = { stdout:
   }
 
   if (parsed.command !== 'scan') {
-    io.stderr.write(`env-doctor: unknown command "${parsed.command}"\n`);
+    io.stderr.write(`env-doctor: unknown command "${escapeHumanText(parsed.command)}"\n`);
     io.stderr.write('Run env-doctor --help for usage.\n');
     return 2;
   }
@@ -56,9 +59,13 @@ export async function runCli(argv = process.argv.slice(2), io: CliIo = { stdout:
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected scanner failure.';
     if (parsed.options.format === 'json') {
-      io.stdout.write(`${renderJsonError(message)}\n`);
+      const requestedCwd = path.resolve(parsed.options.cwd ?? process.cwd());
+      io.stdout.write(`${renderJsonError(message, {
+        cwd: requestedCwd,
+        ...(parsed.options.configFile === undefined ? {} : { configFile: normalizeConfigPath(requestedCwd, parsed.options.configFile) })
+      })}\n`);
     } else {
-      io.stderr.write(`env-doctor: ${message}\n`);
+      io.stderr.write(`env-doctor: ${escapeHumanText(message)}\n`);
     }
     return 2;
   }
@@ -105,6 +112,11 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (arg === '--no-ci') {
+      options.ci = false;
+      continue;
+    }
+
     if (arg === '--verbose') {
       options.verbose = true;
       continue;
@@ -121,6 +133,9 @@ function parseArgs(argv: string[]): ParsedArgs {
       switch (option.name) {
         case '--cwd':
           options.cwd = option.value;
+          break;
+        case '--config':
+          options.configFile = option.value;
           break;
         case '--env-file':
           envFiles.push(option.value);
@@ -183,7 +198,7 @@ function readOptionValue(argv: string[], index: number): { name: string; value: 
     };
   }
 
-  const valueOptions = new Set(['--cwd', '--env-file', '--source', '--ignore', '--public-prefix', '--fail-on', '--format']);
+  const valueOptions = new Set(['--cwd', '--config', '--env-file', '--source', '--ignore', '--public-prefix', '--fail-on', '--format']);
   if (!valueOptions.has(arg)) {
     return undefined;
   }
@@ -220,18 +235,36 @@ function parseFormat(value: string): OutputFormat {
 }
 
 function helpText(): string {
-  return `env-doctor\n\nUsage:\n  env-doctor scan [options]\n\nOptions:\n  --json                         Print machine-readable JSON output\n  --format <human|json>           Select output format\n  --ci                           Fail on CI-risk categories: missing, contract, duplicated, exposed-secret\n  --cwd <path>                    Scan a different working directory\n  --env-file <path>               Scan a specific env file; repeatable\n  --source <path>                 Scan a specific source file or directory; repeatable\n  --ignore <glob>                 Add an ignore glob; repeatable\n  --public-prefix <prefix>        Add public client env prefix; repeatable\n  --fail-on <list|none>           Comma-separated categories that produce exit code 1\n  --no-fail                       Always exit 0 unless a scan error occurs\n  --verbose                       Include scanned file metadata\n  --version                       Print version\n  --help                          Print help\n\nFinding categories:\n  ${FINDING_CATEGORIES.join(', ')}`;
+  return `env-doctor\n\nUsage:\n  env-doctor scan [options]\n\nOptions:\n  --json                         Print machine-readable JSON output\n  --format <human|json>           Select output format\n  --ci                           Fail on CI-risk categories: missing, contract, duplicated, exposed-secret\n  --no-ci                        Disable CI policy from project configuration\n  --cwd <path>                    Scan a different working directory\n  --config <path>                 Use an explicit JSON config file\n  --env-file <path>               Scan a specific env file; repeatable\n  --source <path>                 Scan a specific source file or directory; repeatable\n  --ignore <glob>                 Add an ignore glob; repeatable\n  --public-prefix <prefix>        Add public client env prefix; repeatable\n  --fail-on <list|none>           Comma-separated categories that produce exit code 1\n  --no-fail                       Always exit 0 unless a scan error occurs\n  --verbose                       Include scanned files and suppression details\n  --version                       Print version\n  --help                          Print help\n\nFinding categories:\n  ${FINDING_CATEGORIES.join(', ')}`;
 }
 
 function getPackageVersion(): string {
   return getToolMetadata().version;
 }
 
-if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {
+function normalizeConfigPath(cwd: string, configFile: string): string {
+  const absolute = path.isAbsolute(configFile) ? path.normalize(configFile) : path.resolve(cwd, configFile);
+  const relative = path.relative(cwd, absolute);
+  return (relative === '' ? '.' : relative).split(path.sep).join('/');
+}
+
+if (isMainModule()) {
   runCli().then((exitCode) => {
     process.exitCode = exitCode;
   }, (error: unknown) => {
-    process.stderr.write(`env-doctor: ${error instanceof Error ? error.message : 'Unexpected CLI failure.'}\n`);
+    process.stderr.write(`env-doctor: ${escapeHumanText(error instanceof Error ? error.message : 'Unexpected CLI failure.')}\n`);
     process.exitCode = 2;
   });
+}
+
+function isMainModule(): boolean {
+  if (process.argv[1] === undefined) {
+    return false;
+  }
+
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
 }

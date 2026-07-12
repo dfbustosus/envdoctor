@@ -42,13 +42,14 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "ci": "npm run typecheck && npm run lint && npm test && npm audit && npm run build && npm pack --dry-run",
+    "ci": "npm run typecheck && npm run lint && npm test && npm audit && npm run build && npm run test:process && npm pack --dry-run",
     "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
     "lint": "eslint . --max-warnings=0",
     "pack:dry-run": "npm pack --dry-run",
     "prepack": "npm run build",
     "test": "vitest run",
+    "test:process": "node tests/cli-process-smoke.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit"
   },
@@ -62,6 +63,7 @@
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
+    "ajv": "^8.20.0",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"

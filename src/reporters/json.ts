@@ -5,18 +5,20 @@ export function renderJson(result: ScanResult): string {
   return JSON.stringify(result, null, 2);
 }
 
-export function renderJsonError(message: string): string {
+export function renderJsonError(message: string, options: { cwd?: string; configFile?: string } = {}): string {
   const report: JsonErrorReport = {
     reportVersion: REPORT_VERSION,
     schema: REPORT_SCHEMA_URL,
     tool: getToolMetadata(),
-    cwd: process.cwd(),
+    cwd: options.cwd ?? process.cwd(),
     config: {
       envFiles: [],
       sourcePaths: [],
       ignore: [],
       publicPrefixes: [],
       failOn: [],
+      suppressions: [],
+      ...(options.configFile === undefined ? {} : { configFile: options.configFile }),
       ci: false
     },
     envFiles: [],
@@ -24,6 +26,13 @@ export function renderJsonError(message: string): string {
     usages: [],
     dynamicUsages: [],
     findings: [],
+    activeFindings: [],
+    suppressedFindings: [],
+    findingTotals: {
+      detectedFindings: 0,
+      activeFindings: 0,
+      suppressedLocations: 0
+    },
     issues: [
       {
         filePath: '.',

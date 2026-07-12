@@ -35,14 +35,27 @@ export interface SourceLocation {
   column?: number;
 }
 
-export interface ScanOptions {
-  cwd?: string;
+export interface SuppressionRule {
+  code: FindingCode;
+  key: string;
+  reason: string;
+  filePath?: string;
+}
+
+export interface EnvDoctorConfig {
+  configVersion?: 1;
   ci?: boolean;
   envFiles?: string[];
   sourcePaths?: string[];
   ignore?: string[];
   publicPrefixes?: string[];
   failOn?: FindingCategory[];
+  suppressions?: SuppressionRule[];
+}
+
+export interface ScanOptions extends EnvDoctorConfig {
+  cwd?: string;
+  configFile?: string;
   format?: OutputFormat;
   verbose?: boolean;
 }
@@ -51,12 +64,16 @@ export interface ResolvedConfig {
   cwd: string;
   envFileNames: string[];
   envFiles: string[];
+  envFilesExplicit: boolean;
   sourcePaths: string[];
+  sourcePathsExplicit: boolean;
   sourceExtensions: string[];
   ignore: string[];
   publicPrefixes: string[];
   failOn: FindingCategory[];
+  suppressions: SuppressionRule[];
   ci: boolean;
+  configFile?: string;
   knownRuntimeKeys: string[];
   maxFileSizeBytes: number;
 }
@@ -118,6 +135,17 @@ export interface ScanTotals {
   errors: number;
 }
 
+export interface SuppressedFinding {
+  finding: ScanFinding;
+  suppression: SuppressionRule;
+}
+
+export interface FindingDispositionTotals {
+  detectedFindings: number;
+  activeFindings: number;
+  suppressedLocations: number;
+}
+
 export interface ScanResult {
   reportVersion: 1;
   schema: string;
@@ -129,13 +157,18 @@ export interface ScanResult {
     ignore: string[];
     publicPrefixes: string[];
     failOn: FindingCategory[];
+    suppressions?: SuppressionRule[];
     ci: boolean;
+    configFile?: string;
   };
   envFiles: ScannedEnvFile[];
   sourceFiles: string[];
   usages: EnvUsage[];
   dynamicUsages: DynamicEnvUsage[];
   findings: ScanFinding[];
+  activeFindings?: ScanFinding[];
+  suppressedFindings?: SuppressedFinding[];
+  findingTotals?: FindingDispositionTotals;
   issues: ScanIssue[];
   totals: ScanTotals;
   exitCode: {
@@ -157,13 +190,18 @@ export interface JsonErrorReport {
     ignore: string[];
     publicPrefixes: string[];
     failOn: FindingCategory[];
+    suppressions?: SuppressionRule[];
     ci: boolean;
+    configFile?: string;
   };
   envFiles: ScannedEnvFile[];
   sourceFiles: string[];
   usages: EnvUsage[];
   dynamicUsages: DynamicEnvUsage[];
   findings: ScanFinding[];
+  activeFindings?: ScanFinding[];
+  suppressedFindings?: SuppressedFinding[];
+  findingTotals?: FindingDispositionTotals;
   issues: ScanIssue[];
   totals: ScanTotals;
   error: {
