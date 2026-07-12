@@ -17,6 +17,8 @@ import { fileURLToPath } from 'node:url';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const packageJson = JSON.parse(readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'));
+const packageName = packageJson.name;
 const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'env-doctor-package-'));
 const requestedOutputDirectory = readOption('--output-dir');
 const packageDirectory = requestedOutputDirectory === undefined
@@ -124,7 +126,7 @@ try {
   const installedSchemaPath = path.join(
     consumer,
     'node_modules',
-    'env-doctor',
+    packageName,
     'schemas',
     'scan-report-v1.schema.json'
   );
@@ -139,10 +141,10 @@ try {
     [
       "import { readFile } from 'node:fs/promises';",
       "import { fileURLToPath } from 'node:url';",
-      "import { scanProject } from 'env-doctor';",
+      `import { scanProject } from ${JSON.stringify(packageName)};`,
       'const report = await scanProject({ envFiles: [], sourcePaths: [] });',
       "if (report.reportVersion !== 1) throw new Error('unexpected report version');",
-      "const schemaUrl = import.meta.resolve('env-doctor/schema/scan-report-v1.json');",
+      `const schemaUrl = import.meta.resolve(${JSON.stringify(`${packageName}/schema/scan-report-v1.json`)});`,
       'const exportedSchema = JSON.parse(await readFile(fileURLToPath(schemaUrl), \'utf8\'));',
       "if (!String(exportedSchema.$id).includes('scan-report-v1')) throw new Error('schema export failed');"
     ].join('\n')
@@ -155,7 +157,7 @@ try {
   writeFileSync(
     path.join(consumer, 'index.ts'),
     [
-      "import { scanProject, type FindingCode, type ScanOptions } from 'env-doctor';",
+      `import { scanProject, type FindingCode, type ScanOptions } from ${JSON.stringify(packageName)};`,
       "const options: ScanOptions = { envFiles: [], sourcePaths: [] };",
       "const code: FindingCode = 'ENV_MISSING';",
       'void code;',
