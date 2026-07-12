@@ -63,7 +63,7 @@
     "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
-    "@babel/parser": "^7.26.0",
+    "@babel/parser": "^8.0.4",
     "dotenv": "^16.4.7",
     "fast-glob": "^3.3.3"
   },
