@@ -22,7 +22,7 @@
     "cli"
   ],
   "engines": {
-    "node": ">=20.11.0"
+    "node": "^22.12.0 || ^24.0.0"
   },
   "bin": {
     "env-doctor": "./dist/cli.js"
@@ -37,21 +37,30 @@
   "files": [
     "dist",
     "schemas",
+    "CHANGELOG.md",
     "README.md",
+    "SECURITY.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "ci": "npm run typecheck && npm run lint && npm test && npm audit && npm run build && npm run test:process && npm pack --dry-run",
+    "ci": "npm run verify && npm run test:coverage && npm audit && npm run pack:validate",
     "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
     "lint": "eslint . --max-warnings=0",
     "pack:dry-run": "npm pack --dry-run",
+    "pack:validate": "node scripts/validate-packed-package.mjs",
     "prepack": "npm run build",
+    "release:validate": "node scripts/validate-release.mjs",
     "test": "vitest run",
-    "test:process": "node tests/cli-process-smoke.mjs",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@babel/parser": "^7.26.0",
@@ -63,6 +72,7 @@
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
+    "@vitest/coverage-v8": "^4.1.9",
     "ajv": "^8.20.0",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2",
